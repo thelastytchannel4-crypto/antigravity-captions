@@ -6,7 +6,7 @@ env.allowLocalModels = false;
 // Pre-load singleton
 class PipelineSingleton {
   static task = 'automatic-speech-recognition';
-  static model = 'Xenova/whisper-small';
+  static model = 'Xenova/whisper-tiny';
   static instance = null;
 
   static async getInstance(progress_callback = null) {
@@ -48,14 +48,31 @@ self.addEventListener('message', async (event) => {
         }
       });
 
-      // Run inference
-      // audioData should be a Float32Array sampled at 16kHz
-      const output = await transcriber(audioData, {
+      let partialOutput = { chunks: [] };
+      let isCompleted = false;
+
+      const transcriberPromise = transcriber(audioData, {
         chunk_length_s: 30,
         stride_length_s: 5,
         return_timestamps: 'word',
         language: event.data.language || undefined,
+        chunk_callback: (chunk) => {
+           if (chunk) partialOutput.chunks.push(chunk);
+        }
+      }).then(res => {
+         isCompleted = true;
+         return res;
       });
+
+      const timeoutPromise = new Promise((resolve) => {
+         setTimeout(() => {
+            if (!isCompleted) {
+               resolve(partialOutput);
+            }
+         }, 60000);
+      });
+
+      const output = await Promise.race([transcriberPromise, timeoutPromise]);
 
       self.postMessage({ type: 'complete', result: output, originalSettings: event.data });
     } catch (error) {

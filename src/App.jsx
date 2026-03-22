@@ -147,8 +147,11 @@ export default function App() {
               keywordIdx = i;
             }
           }
-          // Reverting to yellow highlight per user request for Hinglish feature
-          const keywordColor = '#FFFF00';
+          // Provide a completely random bright hex combination out of all 16.7 million shade combinations for every group
+          const hue = Math.floor(Math.random() * 360);
+          const saturation = 80 + Math.random() * 20; // 80-100%
+          const lightness = 50 + Math.random() * 10; // 50-60% brightness
+          const keywordColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
           const start = wordsList[0].timestamp[0];
           const lastW = wordsList[wordsList.length - 1];
           const end = (lastW.timestamp[1] !== null && lastW.timestamp[1] !== undefined) ? lastW.timestamp[1] : lastW.timestamp[0] + 0.2;
@@ -184,10 +187,11 @@ export default function App() {
 
         setWordGroups(groups);
         
-        setTimeout(() => setStage('RESULT'), 1500);
+        // Immediately navigate to result page, no timeout
+        setStage('RESULT');
       }
       if (resp.type === 'error') {
-        setErrorMsg('AI Model Error: ' + resp.error);
+        setErrorMsg('Transcription failed or timed out: ' + resp.error + ' Please try again or use a shorter clip.');
         setStage('HOME');
       }
     };
