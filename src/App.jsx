@@ -23,8 +23,13 @@ const randColor = () => {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const isMobile = () => window.innerWidth < 768 ||
-  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isBrowser = typeof window !== 'undefined';
+
+const isMobile = () => {
+  if (!isBrowser) return false;
+  return window.innerWidth < 768 ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 const cleanText = (t) => t.replace(/[^a-zA-Z0-9\u0900-\u097F\s]/g, '').trim();
 
@@ -34,7 +39,10 @@ const toSrtTime = (s) => {
   return `${pad2(h)}:${pad2(m)}:${pad2(sec)},${String(Math.round((sec % 1) * 1000)).padStart(3,'0')}`;
 };
 
-const hasSpeechAPI = () => !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+const hasSpeechAPI = () => {
+  if (!isBrowser) return false;
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+};
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
@@ -55,7 +63,11 @@ class ErrorBoundary extends React.Component {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function AppContent() {
-  const mobile = useMemo(() => isMobile(), []);
+  const [mobile, setMobile] = useState(false);
+  
+  useEffect(() => {
+    setMobile(isMobile());
+  }, []);
 
   const [stage, setStage] = useState('HOME');    // HOME | READY | LIVE | DONE
   const [videoUrl, setVideoUrl] = useState('');
@@ -93,8 +105,7 @@ function AppContent() {
     if (captionMode === 'en')       return 'en-US';
     if (captionMode === 'hi')       return 'hi-IN';
     if (captionMode === 'hinglish') return 'hi-IN';
-    // auto: try detecting from navigator.language
-    return navigator.language || 'en-US';
+    return (isBrowser && navigator.language) || 'en-US';
   };
 
   const flushBucket = useCallback((bucket, overrideEnd) => {
