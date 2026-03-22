@@ -64,10 +64,14 @@ class ErrorBoundary extends React.Component {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function AppContent() {
   const [mobile, setMobile] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   
   useEffect(() => {
+    setIsMounted(true);
     setMobile(isMobile());
   }, []);
+
+  if (!isMounted) return null; // Fully prevents Vercel SSR/Build crash
 
   const [stage, setStage] = useState('HOME');    // HOME | READY | LIVE | DONE
   const [videoUrl, setVideoUrl] = useState('');
