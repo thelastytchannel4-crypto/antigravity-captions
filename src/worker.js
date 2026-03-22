@@ -1,89 +1,95 @@
 import { pipeline, env } from '@huggingface/transformers';
 
-// Disable local models
+// Always use remote models, allow browser cache
 env.allowLocalModels = false;
+env.useBrowserCache = true;
 
-// Pre-load singleton
-class PipelineSingleton {
-  static task = 'automatic-speech-recognition';
-  static model = 'Xenova/whisper-tiny';
-  static instance = null;
+let transcriberInstance = null;
+let currentModel = null;
 
-  static async getInstance(progress_callback = null) {
-    if (this.instance === null) {
-      this.instance = await pipeline(this.task, this.model, {
-        progress_callback,
-        device: 'webgpu', // Try WebGPU if available
-      }).catch(err => {
-        // Fallback to WASM
-        return pipeline(this.task, this.model, {
-          progress_callback,
-        });
-      });
-    }
-    return this.instance;
+async function getTranscriber(modelName, progress_callback) {
+  // Re-create if model changed
+  if (transcriberInstance && currentModel === modelName) {
+    return transcriberInstance;
   }
+  transcriberInstance = null;
+  currentModel = modelName;
+
+  try {
+    // Try WebGPU first
+    transcriberInstance = await pipeline('automatic-speech-recognition', modelName, {
+      progress_callback,
+      device: 'webgpu',
+    });
+  } catch {
+    // Fall back to WASM (required for mobile Safari)
+    transcriberInstance = await pipeline('automatic-speech-recognition', modelName, {
+      progress_callback,
+    });
+  }
+  return transcriberInstance;
 }
 
-// Listen for messages from the main thread
 self.addEventListener('message', async (event) => {
-  const { type, audioData } = event.data;
-
-  if (type === 'load') {
-    try {
-      await PipelineSingleton.getInstance((x) => {
-        self.postMessage({ type: 'progress', data: x });
-      });
-      self.postMessage({ type: 'loaded' });
-    } catch (error) {
-      self.postMessage({ type: 'error', error: error.message });
-    }
-  }
+  const { type, audioData, language, captionMode, isMobile, memoryGB } = event.data;
 
   if (type === 'generate') {
     try {
-      // On mobile or low memory, default to smallest model (.en), BUT preserve multilingual tiny for Hindi/Hinglish
-      if ((event.data.isMobile || event.data.memoryGB < 4) && event.data.language !== 'hi') {
-         PipelineSingleton.model = 'Xenova/whisper-tiny.en';
-      } else {
-         PipelineSingleton.model = 'Xenova/whisper-tiny';
-      }
+      // ── Model selection ──────────────────────────────────────────────────
+      // whisper-tiny.en  → English only, smallest possible (mobile + low-RAM)
+      // whisper-tiny     → multilingual (needed for Hindi / Hindi detection)
+      const needsMultilingual = language === 'hi' || captionMode === 'hinglish' || captionMode === 'hi' || captionMode === 'auto';
+      const isLowResource = isMobile || (memoryGB != null && memoryGB < 4);
+      const modelName = (isLowResource && !needsMultilingual)
+        ? 'Xenova/whisper-tiny.en'
+        : 'Xenova/whisper-tiny';
 
-      let transcriber = await PipelineSingleton.getInstance((x) => {
-        if (x.status === 'progress' || x.status === 'init' || x.status === 'download') {
-           self.postMessage({ type: 'progress', data: x });
+      const transcriber = await getTranscriber(modelName, (x) => {
+        if (['progress', 'init', 'download', 'ready'].includes(x.status)) {
+          self.postMessage({ type: 'progress', data: x });
         }
       });
 
-      let partialOutput = { chunks: [] };
-      let isCompleted = false;
+      // ── Run transcription with streaming + 120 s hard timeout ────────────
+      let partialChunks = [];
+      let done = false;
 
-      const transcriberPromise = transcriber(audioData, {
+      const transcribePromise = transcriber(audioData, {
         chunk_length_s: 30,
         stride_length_s: 5,
         return_timestamps: 'word',
-        language: event.data.language || undefined,
+        language: language || null,
+        // collect every streamed chunk
         chunk_callback: (chunk) => {
-           if (chunk) partialOutput.chunks.push(chunk);
-        }
-      }).then(res => {
-         isCompleted = true;
-         return res;
+          if (chunk && chunk.chunks) {
+            partialChunks.push(...chunk.chunks);
+          }
+        },
+      }).then((result) => {
+        done = true;
+        return result;
       });
 
       const timeoutPromise = new Promise((resolve) => {
-         setTimeout(() => {
-            if (!isCompleted) {
-               resolve(partialOutput);
-            }
-         }, 60000);
+        setTimeout(() => {
+          if (!done) {
+            // Return whatever we have so far
+            resolve({ chunks: partialChunks, text: partialChunks.map(c => c.text).join(' ') });
+          }
+        }, 120_000);
       });
 
-      const output = await Promise.race([transcriberPromise, timeoutPromise]);
+      const output = await Promise.race([transcribePromise, timeoutPromise]);
+
+      if (!output || !output.chunks || output.chunks.length === 0) {
+        self.postMessage({ type: 'error', error: 'No speech detected. Please try a video with clear audio.' });
+        return;
+      }
 
       self.postMessage({ type: 'complete', result: output, originalSettings: event.data });
-    } catch (error) {
-      self.postMessage({ type: 'error', error: error.message });
+
+    } catch (err) {
+      self.postMessage({ type: 'error', error: err.message });
     }
   }
 });
