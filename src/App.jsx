@@ -6,7 +6,7 @@ import { transliterate } from 'transliteration';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MAX_DURATION_SEC = 120; // 2 minutes hard limit
+const WARN_DURATION_SEC = 120; // show a friendly advisory for videos over 2 min
 
 // Full rainbow palette — every shade on earth
 const COLOR_PALETTE = [
@@ -231,12 +231,11 @@ function AppContent() {
     if (!file) return;
     setErrorMsg('');
 
-    // 1. Check duration BEFORE loading anything into RAM
-    setProgressMsg('Checking video duration...');
+    // 1. Check duration — warn for long videos but don't block
     const dur = await getVideoDuration(file);
-    if (dur > MAX_DURATION_SEC) {
-      setErrorMsg(`⏱ Video is ${Math.floor(dur)}s long. Maximum is 2 minutes (120s). Please trim your video first.`);
-      return;
+    if (dur > WARN_DURATION_SEC) {
+      setErrorMsg(`⚠️ Video is ${Math.floor(dur/60)}m ${Math.floor(dur%60)}s long. Longer videos take more time to process — please be patient!`);
+      // Don't return — let processing continue
     }
 
     if (file.size > 500 * 1024 * 1024) { setErrorMsg('File too large. Max 500MB.'); return; }
@@ -261,10 +260,7 @@ function AppContent() {
 
         const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
         const decoded = await ctx.decodeAudioData(arrayBuf);
-
-        // Trim to 2 min max even if ffmpeg check was bypassed
-        const maxSamples = MAX_DURATION_SEC * 16000;
-        float32Audio = decoded.getChannelData(0).slice(0, maxSamples);
+        float32Audio = decoded.getChannelData(0); // Full audio — no trimming
 
         ctx.close();
         setAudioProgress(100);
@@ -290,9 +286,8 @@ function AppContent() {
         await ffmpeg.writeFile('input_video', await fetchFile(file));
         await ffmpeg.exec([
           '-i', 'input_video',
-          '-t', String(MAX_DURATION_SEC),
           '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', 'output.wav'
-        ]);
+        ]); // Full video — no duration cap
         const raw = await ffmpeg.readFile('output.wav');
         const audioBuf = new Uint8Array(raw).buffer;
         try { ffmpeg.deleteFile('input_video'); } catch {}
@@ -467,8 +462,8 @@ function AppContent() {
                 <Upload color="#00f3ff" size={isMobile ? 36 : 52}/>
                 <p style={{ fontSize:isMobile ? 15 : 18, fontWeight:600, margin:0 }}>Deploy Video to Force Field</p>
                 <p style={{ fontSize:13, color:'#777', margin:0 }}>Tap or drag · MP4/MOV/AVI · Max 500MB</p>
-                <p style={{ fontSize:12, color:'#facc15', margin:0, fontWeight:600 }}>
-                  ⏱ Max 2 minutes · longer videos will be rejected
+                <p style={{ fontSize:12, color:'#86efac', margin:0, fontWeight:600 }}>
+                  🎬 Any length supported · longer videos take more time
                 </p>
               </div>
               <input id="file-upload" type="file" accept="video/*,audio/*" style={{ display:'none' }} onChange={handleInputChange}/>
