@@ -71,8 +71,6 @@ function AppContent() {
     setMobile(isMobile());
   }, []);
 
-  if (!isMounted) return null; // Fully prevents Vercel SSR/Build crash
-
   const [stage, setStage] = useState('HOME');    // HOME | READY | LIVE | DONE
   const [videoUrl, setVideoUrl] = useState('');
   const [captionMode, setCaptionMode] = useState('auto');
@@ -279,6 +277,8 @@ function AppContent() {
       </div>
     </>
   );
+
+  if (!isMounted) return null; // Final SSR safety check after all hooks have run
 
   return (
     <div style={{ minHeight:'100vh', background: mobile ? '#0a0a1a' : undefined, color:'white', position:'relative', overflowX:'hidden' }}>
