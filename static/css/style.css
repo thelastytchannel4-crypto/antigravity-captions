@@ -1,0 +1,257 @@
+:root {
+    --neon-blue: #00f3ff;
+    --neon-purple: #b500ff;
+    --neon-cyan: #00ffff;
+    --bg-dark: #050510;
+    --glass-bg: rgba(10, 10, 25, 0.4);
+    --glass-border: rgba(0, 243, 255, 0.3);
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-dark);
+    font-family: 'Exo 2', sans-serif;
+    color: white;
+    overflow-x: hidden;
+    cursor: none; /* Custom zero-gravity cursor */
+}
+
+#canvas-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+}
+
+h1, h2, h3 {
+    font-family: 'Orbitron', sans-serif;
+}
+
+.content {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+/* Glassmorphism Panel */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0, 243, 255, 0.05);
+    border-radius: 24px;
+    padding: 3rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transform-style: preserve-3d;
+}
+
+.floating {
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+}
+
+.title-text {
+    font-size: 3.5rem;
+    color: #fff;
+    text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue), 0 0 40px var(--neon-purple);
+    margin-bottom: 2rem;
+    animation: float 4s ease-in-out infinite alternate;
+}
+
+/* Custom Cursor */
+#custom-cursor {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--neon-cyan);
+    pointer-events: none;
+    z-index: 9999;
+    mix-blend-mode: screen;
+    box-shadow: 0 0 15px var(--neon-cyan), 0 0 30px var(--neon-blue);
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s;
+}
+
+.cursor-glow {
+    width: 40px !important;
+    height: 40px !important;
+    background: var(--neon-purple) !important;
+    box-shadow: 0 0 20px var(--neon-purple), 0 0 40px var(--neon-purple) !important;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 1rem 2rem;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+    color: white;
+    background: rgba(0, 243, 255, 0.1);
+    border: 1px solid var(--neon-blue);
+    border-radius: 50px;
+    text-decoration: none;
+    cursor: none;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+    margin: 1rem;
+}
+
+.btn:hover {
+    background: rgba(0, 243, 255, 0.3);
+    box-shadow: 0 0 20px var(--neon-blue), 0 5px 20px var(--neon-purple);
+    transform: translateY(-5px);
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    transition: all 0.5s ease;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+/* Upload Area */
+.upload-area {
+    border: 2px dashed var(--neon-blue);
+    border-radius: 20px;
+    padding: 4rem 2rem;
+    margin: 2rem 0;
+    cursor: none;
+    transition: all 0.3s ease;
+    background: rgba(0,0,0,0.2);
+    position: relative;
+}
+
+.upload-area.dragover {
+    background: rgba(0, 243, 255, 0.1);
+    border-color: var(--neon-purple);
+    box-shadow: 0 0 30px rgba(181, 0, 255, 0.4);
+}
+
+/* Video Player */
+.video-container {
+    margin: 2rem 0;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 30px var(--neon-blue);
+    border: 1px solid var(--glass-border);
+}
+
+video {
+    width: 100%;
+    max-width: 800px;
+    display: block;
+    background: #000;
+}
+
+/* Subtitles Styling */
+::cue {
+    background: var(--glass-bg);
+    color: var(--neon-cyan);
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 0 0 10px var(--neon-blue);
+    font-size: 1.2rem;
+}
+
+/* Spinner / Progress */
+.orb {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100px;
+    height: 100px;
+    margin-top: -50px;
+    margin-left: -50px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--neon-cyan) 0%, transparent 70%);
+    box-shadow: 0 0 50px var(--neon-blue), 0 0 100px var(--neon-purple);
+    animation: pulseOrb 2s infinite alternate, float 4s ease-in-out infinite;
+}
+
+.ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 150px;
+    height: 150px;
+    margin-top: -75px;
+    margin-left: -75px;
+    border: 2px solid var(--neon-purple);
+    border-radius: 50%;
+    animation: spinRing 4s linear infinite;
+    box-shadow: 0 0 20px var(--neon-purple);
+}
+
+@keyframes pulseOrb {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    100% { transform: scale(1.1); opacity: 1; }
+}
+
+@keyframes spinRing {
+    0% { transform: rotate3d(1, 1, 0, 0deg); }
+    100% { transform: rotate3d(1, 1, 0, 360deg); }
+}
+
+/* Astronaut */
+.astronaut {
+    position: absolute;
+    right: 15%;
+    top: 25%;
+    font-size: 6rem;
+    animation: floatAstronaut 20s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px var(--neon-cyan));
+    pointer-events: none;
+    z-index: 5;
+}
+
+@keyframes floatAstronaut {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-30px, -40px) rotate(15deg); }
+    50% { transform: translate(15px, -60px) rotate(-10deg); }
+    75% { transform: translate(40px, -30px) rotate(20deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.error-msg {
+    color: #ff0055;
+    text-shadow: 0 0 10px #ff0055;
+    margin-top: 1rem;
+    font-family: 'Orbitron', sans-serif;
+    display: none;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .title-text { font-size: 2.2rem; }
+    .astronaut { font-size: 4rem; right: 5%; top: 15%; }
+    .glass-panel { padding: 1.5rem; }
+    video { max-width: 100%; }
+}

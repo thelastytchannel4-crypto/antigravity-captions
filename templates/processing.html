@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="glass-panel" style="min-width: 400px; z-index: 10;">
+    <div style="position: relative; height: 150px; display: flex; justify-content: center; align-items: center;">
+        <div class="ring"></div>
+        <div class="orb"></div>
+    </div>
+    <h2 style="margin-top: 2rem; color: var(--neon-cyan); font-weight: 300; text-shadow: 0 0 10px var(--neon-cyan);">Generating Captions...</h2>
+    <p style="font-size: 1.2rem; margin-top: 1rem;">Floating through your video 🚀</p>
+    <div id="error-message" class="error-msg" style="margin-top: 2rem;"></div>
+</div>
+
+<script>
+    const taskId = '{{ task_id }}';
+    
+    function checkStatus() {
+        fetch('/status/' + taskId)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'done') {
+                    window.location.href = '/result/' + taskId;
+                } else if (data.status === 'error') {
+                    document.getElementById('error-message').innerText = 'Error: ' + data.error;
+                    document.getElementById('error-message').style.display = 'block';
+                } else {
+                    setTimeout(checkStatus, 2000);
+                }
+            })
+            .catch(err => {
+                console.error("Polling error:", err);
+                setTimeout(checkStatus, 2000);
+            });
+    }
+    
+    setTimeout(checkStatus, 2000);
+</script>
+{% endblock %}
