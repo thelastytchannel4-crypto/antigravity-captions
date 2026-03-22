@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-glassBg border border-glassBorder backdrop-blur-md rounded-2xl shadow-[0_0_20px_rgba(0,195,255,0.15)];
+  }
+  .neon-text {
+    text-shadow: 0 0 10px #00f3ff, 0 0 20px #b800ff;
+  }
+  .neon-box {
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.5), inset 0 0 15px rgba(0, 243, 255, 0.2);
+  }
+  .hologram-btn {
+    @apply relative overflow-hidden bg-transparent border border-[#00f3ff] text-[#00f3ff] transition-all duration-300;
+  }
+  .hologram-btn:hover {
+    @apply bg-[#00f3ff]/20 shadow-[0_0_20px_#00f3ff] text-white;
+  }
+}
+
+/* Base resets & cursor */
+html, body, #root {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  cursor: default; /* We will add a custom cursor trail */
+}
+
+/* Custom Scrollbar for captions */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 15, 30, 0.4);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 243, 255, 0.5);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 243, 255, 0.8);
+}
+
+/* Space Background Effects - Pure CSS */
+.space-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -10;
+  background: radial-gradient(circle at center, #0B001A 0%, #010514 100%);
+  overflow: hidden;
+}
+
+/* Moving Nebula */
+.nebula {
+  position: absolute;
+  width: 150vw;
+  height: 150vh;
+  top: -25vh;
+  left: -25vw;
+  background: radial-gradient(circle at 30% 30%, rgba(184, 0, 255, 0.15) 0%, transparent 40%),
+              radial-gradient(circle at 70% 60%, rgba(0, 243, 255, 0.1) 0%, transparent 40%);
+  filter: blur(80px);
+  animation: driftNebula 30s ease-in-out infinite alternate;
+}
+
+@keyframes driftNebula {
+  0% { transform: scale(1) translate(0, 0); }
+  100% { transform: scale(1.1) translate(5%, -5%); }
+}
+
+/* Particles & Stars */
+.star {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: twinkle linear infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 8px white; }
+}
+
+/* Drifting particles */
+.particle-layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  animation: driftParticle linear infinite;
+}
+.particle-layer-1 { animation-duration: 100s; }
+.particle-layer-2 { animation-duration: 150s; animation-direction: reverse; }
+
+@keyframes driftParticle {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(-100vh) rotate(5deg); }
+}
+
+/* Spinning 3D CSS Objects */
+.bg-objects {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  perspective: 1000px;
+}
+
+.css-ring {
+  position: absolute;
+  border: 1px solid rgba(0, 243, 255, 0.1);
+  border-radius: 50%;
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.05), inset 0 0 20px rgba(184, 0, 255, 0.05);
+  animation: rotate3D 60s linear infinite;
+  transform-style: preserve-3d;
+}
+
+@keyframes rotate3D {
+  0% { transform: rotateX(60deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: rotateX(60deg) rotateY(360deg) rotateZ(360deg); }
+}
+
+/* Hologram Scanning Line */
+.hologram-scan {
+  position: relative;
+  overflow: hidden;
+}
+.hologram-scan::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 20%;
+  background: linear-gradient(to bottom, transparent, rgba(0,243,255,0.4), transparent);
+  animation: scan 3s infinite linear;
+}
+@keyframes scan {
+  0% { top: -20%; }
+  100% { top: 120%; }
+}
+
+/* Floating Animations */
+.animate-float {
+  animation: floatObj 6s ease-in-out infinite;
+}
+.animate-float-delay {
+  animation: floatObj 8s ease-in-out infinite 2s;
+}
+
+@keyframes floatObj {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+/* Cursor Trail dot */
+.cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  background: #00f3ff;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px #00f3ff, 0 0 20px #b800ff;
+  transition: width 0.2s, height 0.2s;
+}
+
+/* Utility to ensure tilt wraps */
+.tilt-wrapper {
+  transform-style: preserve-3d;
+}
+.tilt-inner {
+  transform: translateZ(50px);
+}
