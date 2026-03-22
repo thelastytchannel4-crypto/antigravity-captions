@@ -42,6 +42,13 @@ self.addEventListener('message', async (event) => {
 
   if (type === 'generate') {
     try {
+      // On mobile or low memory, default to smallest model (.en), BUT preserve multilingual tiny for Hindi/Hinglish
+      if ((event.data.isMobile || event.data.memoryGB < 4) && event.data.language !== 'hi') {
+         PipelineSingleton.model = 'Xenova/whisper-tiny.en';
+      } else {
+         PipelineSingleton.model = 'Xenova/whisper-tiny';
+      }
+
       let transcriber = await PipelineSingleton.getInstance((x) => {
         if (x.status === 'progress' || x.status === 'init' || x.status === 'download') {
            self.postMessage({ type: 'progress', data: x });

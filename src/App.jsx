@@ -5,6 +5,28 @@ import { toBlobURL, fetchFile } from '@ffmpeg/util';
 import { Upload, Rocket, Play, Download, Loader2, RefreshCw } from 'lucide-react';
 import { transliterate } from 'transliteration';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-spaceDark flex flex-col items-center justify-center p-6 text-center text-white">
+           <h2 className="text-3xl text-red-500 font-bold mb-4">Processing Overload</h2>
+           <p className="max-w-md text-lg text-gray-300">Your device ran out of memory or crashed during video extraction. If you are on a mobile device, please try using a shorter clip under 2 minutes.</p>
+           <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 border border-neonBlue text-neonBlue rounded-full shadow-[0_0_15px_#00f3ff]">Reload App</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const formatTimeSrt = (seconds) => {
   const pad = (num, size) => ('000' + num).slice(size * -1);
   const time = parseFloat(seconds).toFixed(3);
@@ -58,7 +80,7 @@ function CursorTrail() {
   return null;
 }
 
-export default function App() {
+export function AppContent() {
   const [stage, setStage] = useState('HOME'); // HOME, PROCESSING, RESULT
   const [videoFile, setVideoFile] = useState(null);
   const [videoUrl, setVideoUrl] = useState('');
@@ -199,9 +221,19 @@ export default function App() {
     return () => workerRef.current.removeEventListener('message', onMessageReceived);
   }, []);
 
+  const isMobile = Boolean(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+  const memoryGB = navigator.deviceMemory || 4;
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (isMobile && file.size > 100 * 1024 * 1024) {
+      if(!window.confirm("Mobile Warning: Files over 100MB may process slowly or run out of memory. Try a shorter video under 2 minutes for best results on mobile! Continue anyway?")) {
+        return;
+      }
+    }
+
     if (file.size > 500 * 1024 * 1024) {
       setErrorMsg('File too large. Maximum size is 500MB.');
       return;
@@ -228,35 +260,52 @@ export default function App() {
     setIsModelDownloading(false);
     
     try {
-      setProgressMsg('Warming up the warp drive (FFmpeg)...');
-      let ffmpeg = ffmpegRef.current;
-      
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
-      if (!ffmpeg.loaded) {
-        await ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      let float32Audio;
+
+      if (!isMobile) {
+        setProgressMsg('Warming up the warp drive (FFmpeg)...');
+        let ffmpeg = ffmpegRef.current;
+        
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+        if (!ffmpeg.loaded) {
+          await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          });
+        }
+
+        ffmpeg.on('progress', ({ progress }) => {
+          setAudioProgress(Math.round(progress * 100));
+          setProgressMsg('Extracting audio from the cosmos...');
         });
+
+        // Simulating streaming file fetch chunk constraints
+        await ffmpeg.writeFile('input_video', await fetchFile(file));
+        
+        // Extract audio: 16kHz, mono (required for whisper)
+        await ffmpeg.exec(['-i', 'input_video', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', 'output.wav']);
+        setProgressMsg('Audio extracted! Calibrating AI sensors...');
+        
+        const audioData = await ffmpeg.readFile('output.wav');
+        const audioBuffer = new Uint8Array(audioData).buffer;
+
+        ffmpeg.deleteFile('input_video');
+        ffmpeg.deleteFile('output.wav');
+
+        // Decode audio
+        setProgressMsg('Decoding audio for Whisper...');
+        let audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        let decodedAudio = await audioCtx.decodeAudioData(audioBuffer);
+        float32Audio = decodedAudio.getChannelData(0); 
+      } else {
+        setProgressMsg('Streaming directly to Mobile Web Audio...');
+        setAudioProgress(50);
+        // Using native array buffer decoder bypasses massive WebAssembly FFmpeg RAM allocations for mobile
+        const buffer = await file.arrayBuffer(); 
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const decodedAudio = await audioCtx.decodeAudioData(buffer);
+        float32Audio = decodedAudio.getChannelData(0);
       }
-
-      ffmpeg.on('progress', ({ progress }) => {
-        setAudioProgress(Math.round(progress * 100));
-        setProgressMsg('Extracting audio from the cosmos...');
-      });
-
-      await ffmpeg.writeFile('input_video', await fetchFile(file));
-      // Extract audio: 16kHz, mono (required for whisper)
-      await ffmpeg.exec(['-i', 'input_video', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', 'output.wav']);
-      setProgressMsg('Audio extracted! Calibrating AI sensors...');
-      
-      const audioData = await ffmpeg.readFile('output.wav');
-      const audioBuffer = new Uint8Array(audioData).buffer;
-
-      // Decode audio
-      setProgressMsg('Decoding audio for Whisper...');
-      let audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-      let decodedAudio = await audioCtx.decodeAudioData(audioBuffer);
-      let float32Audio = decodedAudio.getChannelData(0); // Whisper needs Float32Array 16kHz mono
       
       setProgressMsg('Whisper AI is reading your video...');
       setAudioProgress(100);
@@ -266,7 +315,7 @@ export default function App() {
       if (captionMode === 'hi' || captionMode === 'hinglish') whisperLang = 'hi';
 
       // Send to worker
-      workerRef.current.postMessage({ type: 'generate', audioData: float32Audio, language: whisperLang, captionMode }, [float32Audio.buffer]);
+      workerRef.current.postMessage({ type: 'generate', audioData: float32Audio, language: whisperLang, captionMode, isMobile, memoryGB }, [float32Audio.buffer]);
       
       // Simulating some visual progress while worker is busy
       let sim = 0;
@@ -548,5 +597,13 @@ export default function App() {
 
       </div>
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }
